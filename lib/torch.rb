@@ -271,15 +271,16 @@ module Torch
     quint8: 13,
     qint32: 14,
     bfloat16: 15
-  }
-  ENUM_TO_DTYPE = DTYPE_TO_ENUM.invert
+  }.freeze
+  ENUM_TO_DTYPE = DTYPE_TO_ENUM.invert.freeze
 
   TENSOR_TYPE_CLASSES = []
 
   def self._make_tensor_class(dtype, cuda = false)
     cls = Class.new
-    device = cuda ? "cuda" : "cpu"
-    cls.define_singleton_method(:new) do |*args|
+    device = (cuda ? "cuda" : "cpu").freeze
+    # shareable so it can be called from Ractors
+    cls.define_singleton_method(:new, &Ractor.make_shareable(proc do |*args|
       if args.size == 1 && args.first.is_a?(Tensor)
         args.first.send(dtype).to(device)
       elsif args.size == 1 && args.first.is_a?(ByteStorage) && dtype == :uint8
@@ -292,7 +293,7 @@ module Torch
       else
         Torch.empty(*args, dtype: dtype, device: device)
       end
-    end
+    end))
     TENSOR_TYPE_CLASSES << cls
     cls
   end
@@ -307,23 +308,20 @@ module Torch
     int32: "IntTensor",
     int64: "LongTensor",
     bool: "BoolTensor"
-  }
+  }.freeze
 
   DTYPE_TO_CLASS.each do |dtype, class_name|
     const_set(class_name, _make_tensor_class(dtype))
     CUDA.const_set(class_name, _make_tensor_class(dtype, true))
   end
+  TENSOR_TYPE_CLASSES.freeze
 
   class << self
     # Torch.float, Torch.long, etc
     DTYPE_TO_ENUM.each_key do |dtype|
-      define_method(dtype) do
-        dtype
-      end
-
-      Tensor.define_method(dtype) do
-        type(dtype)
-      end
+      # shareable so they can be called from Ractors
+      define_method(dtype, &Ractor.make_shareable(proc { dtype }))
+      Tensor.define_method(dtype, &Ractor.make_shareable(proc { type(dtype) }))
     end
 
     # https://pytorch.org/docs/stable/torch.html

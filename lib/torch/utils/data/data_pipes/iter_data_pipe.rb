@@ -16,14 +16,12 @@ module Torch
               raise Error, "Unable to add DataPipe function name #{function_name} as it is already taken"
             end
 
-            function = lambda do |source_dp, *args, **options, &block|
-              cls_to_register.new(source_dp, *args, **options, &block)
-            end
-            functions[function_name] = function
+            functions[function_name] = cls_to_register
 
-            define_method function_name do |*args, **options, &block|
-              IterDataPipe.functions[function_name].call(self, *args, **options, &block)
-            end
+            # shareable so it can be called from Ractors
+            define_method function_name, &Ractor.make_shareable(proc { |*args, **options, &block|
+              cls_to_register.new(self, *args, **options, &block)
+            })
           end
 
           def reset

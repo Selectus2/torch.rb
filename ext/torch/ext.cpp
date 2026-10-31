@@ -20,6 +20,15 @@ VALUE rb_eTorchError = Qnil;
 
 extern "C"
 void Init_ext() {
+  // Rice registers GC roots at runtime, which is only Ractor-safe with Ruby 4.1+
+#if RUBY_API_VERSION_CODE >= 40100 || defined(TORCH_RB_RACTOR_SAFE)
+  rb_ext_ractor_safe(true);
+#endif
+
+  // tracking returned objects writes to a global map, which isn't Ractor-safe,
+  // and isn't needed since owned objects are always new
+  Rice::detail::Registries::instance.instances.mode = Rice::detail::InstanceRegistry::Mode::Off;
+
   auto m = Rice::define_module("Torch");
 
   rb_eTorchError = Rice::define_class_under(m, "Error", rb_eStandardError);
