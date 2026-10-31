@@ -89,10 +89,15 @@ static VALUE tensor__backward(int argc, VALUE* argv, VALUE self_) {
   auto _r = parser.parse(self_, argc, argv, parsed_args);
   // _backward(Tensor self, Tensor[] inputs, Tensor? gradient=None, bool? retain_graph=None, bool create_graph=False) -> ()
   auto dispatch__backward = [](const Tensor & self, TensorList inputs, const c10::optional<at::Tensor> & gradient, c10::optional<bool> retain_graph, bool create_graph) -> void {
-    // in future, release GVL
     self._backward(inputs, gradient, retain_graph, create_graph);
   };
-  dispatch__backward(self, {}, _r.optionalTensor(0), _r.toBoolOptional(1), _r.toBool(2));
+  if (self.is_mps()) {
+    // only queues work
+    dispatch__backward(self, TensorList{}, _r.optionalTensor(0), _r.toBoolOptional(1), _r.toBool(2));
+  } else {
+    // cost depends on the graph, not the arguments
+    without_gvl<gvl_cost::always>(dispatch__backward, self, TensorList{}, _r.optionalTensor(0), _r.toBoolOptional(1), _r.toBool(2));
+  }
   RETURN_NIL
   END_HANDLE_TH_ERRORS
 }

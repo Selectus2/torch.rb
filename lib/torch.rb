@@ -1,3 +1,8 @@
+# by default, libomp finds the current thread by searching stack ranges,
+# which fails with M:N threads (coroutine stacks), so use thread-local storage
+# must be set before libomp initializes
+ENV["KMP_GTID_MODE"] ||= "2"
+
 # ext
 require "torch/ext"
 
@@ -387,6 +392,24 @@ module Torch
     end
     alias_method :set_grad_enabled, :grad_enabled
 
+    # release the GVL during heavy ops so threads can run in parallel
+    def release_gvl
+      _release_gvl
+    end
+
+    def release_gvl=(value)
+      self._release_gvl = value
+    end
+
+    # skip releasing for matrix products estimated below this many floating point operations
+    def release_gvl_min_flops
+      _release_gvl_min_flops
+    end
+
+    def release_gvl_min_flops=(value)
+      self._release_gvl_min_flops = value
+    end
+
     def device(str)
       if str.is_a?(Device)
         str
@@ -559,4 +582,6 @@ module Torch
       options
     end
   end
+
+  self.release_gvl = ENV["TORCH_RB_RELEASE_GVL"] == "1"
 end

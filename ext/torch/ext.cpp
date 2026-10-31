@@ -1,3 +1,5 @@
+#include <atomic>
+
 #include <torch/torch.h>
 
 #include <rice/rice.hpp>
@@ -11,12 +13,18 @@ void init_torch(Rice::Module& m);
 
 void init_backends(Rice::Module& m);
 void init_cuda(Rice::Module& m);
+void init_mps(Rice::Module& m);
 void init_device(Rice::Module& m);
 void init_generator(Rice::Module& m, Rice::Class& rb_cGenerator);
 void init_ivalue(Rice::Module& m, Rice::Class& rb_cIValue);
 void init_random(Rice::Module& m);
 
 VALUE rb_eTorchError = Qnil;
+
+std::atomic<bool> release_gvl = false;
+// about a 100 x 100 matmul, where releasing starts to pay off (bench/gvl_release.rb size)
+std::atomic<double> release_gvl_min_flops = 2e6;
+std::atomic<int> num_threads_generation = 0;
 
 extern "C"
 void Init_ext() {
@@ -43,6 +51,7 @@ void Init_ext() {
 
   init_backends(m);
   init_cuda(m);
+  init_mps(m);
   init_generator(m, rb_cGenerator);
   init_ivalue(m, rb_cIValue);
   init_random(m);

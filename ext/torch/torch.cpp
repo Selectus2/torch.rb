@@ -43,6 +43,48 @@ void init_torch(Rice::Module& m) {
         torch::GradMode::set_enabled(enabled);
       })
     .define_singleton_function(
+      "_release_gvl",
+      []() {
+        return release_gvl.load();
+      })
+    .define_singleton_function(
+      "_release_gvl=",
+      [](bool value) {
+        release_gvl.store(value);
+      })
+    .define_singleton_function(
+      "_release_gvl_min_flops",
+      []() {
+        return release_gvl_min_flops.load();
+      })
+    .define_singleton_function(
+      "_release_gvl_min_flops=",
+      [](double value) {
+        release_gvl_min_flops.store(value);
+      })
+    .define_singleton_function(
+      "get_num_threads",
+      []() {
+        sync_num_threads();
+        return at::get_num_threads();
+      })
+    .define_singleton_function(
+      "set_num_threads",
+      [](int nthreads) {
+        at::set_num_threads(nthreads);
+        num_threads_generation++;
+      })
+    .define_singleton_function(
+      "get_num_interop_threads",
+      []() {
+        return at::get_num_interop_threads();
+      })
+    .define_singleton_function(
+      "set_num_interop_threads",
+      [](int nthreads) {
+        at::set_num_interop_threads(nthreads);
+      })
+    .define_singleton_function(
       "manual_seed",
       [](uint64_t seed) {
         return torch::manual_seed(seed);

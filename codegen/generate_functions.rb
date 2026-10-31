@@ -3,6 +3,19 @@ require "yaml"
 # rake generate:function (without bundle)
 require_relative "function"
 
+# ops that release the GVL when Torch.release_gvl is enabled,
+# with the cost check for each (ext/torch/utils.h)
+RELEASE_GVL = {
+  "gvl_cost::matmul<0, 1>" => %w[mm matmul bmm],
+  "gvl_cost::matmul<1, 2>" => %w[addmm baddbmm addbmm],
+  "gvl_cost::linear" => %w[linear],
+  "gvl_cost::einsum" => %w[einsum],
+  "gvl_cost::heavy" => %w[
+    convolution conv1d conv2d conv3d conv_transpose1d conv_transpose2d conv_transpose3d
+    lstm gru rnn_tanh rnn_relu scaled_dot_product_attention
+  ]
+}.flat_map { |cost, names| names.map { |name| [name, cost] } }.to_h
+
 def generate_functions
   functions = load_functions
   functions = skip_functions(functions)
@@ -364,7 +377,12 @@ def generate_function_code(function, cpp_name, params, opt_index, remove_self)
     params.insert(opt_index, "options")
   end
 
-  code = "dispatch_#{cpp_name}(#{params.join(", ")})"
+  code =
+    if (cost = RELEASE_GVL[function.base_name])
+      "without_gvl<#{cost}>(#{(["dispatch_#{cpp_name}"] + params).join(", ")})"
+    else
+      "dispatch_#{cpp_name}(#{params.join(", ")})"
+    end
   if function.retvals.empty?
     "#{code};\nRETURN_NIL"
   else
