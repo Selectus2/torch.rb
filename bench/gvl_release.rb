@@ -1,4 +1,4 @@
-# ruby bench/gvl_release.rb [scaling|size|serve|device]
+# ruby bench/gvl_release.rb [scaling|size|serve|device|busy]
 # compares holding and releasing the GVL, with 1:1 and M:N threads
 # each run is a separate process so OMP_* and RUBY_MN_THREADS take effect
 
@@ -91,7 +91,7 @@ def run_device(threads, device)
   measure { in_threads(threads) { work.call(steps / threads) } }
 end
 
-# training on MPS while another thread runs Ruby code
+# training while another thread runs Ruby code
 # returns wall time and how far the Ruby thread got
 def run_busy(device)
   x = Torch.randn(1024, 512, device: device)
@@ -99,6 +99,7 @@ def run_busy(device)
   model = mlp(512, 2048, 1).to(device)
   count = 0
   ruby = Thread.new { loop { count += 1 } }
+  ruby.priority = ENV["BUSY_PRIORITY"].to_i if ENV["BUSY_PRIORITY"]
   wall, = measure do
     48.times do
       model.zero_grad
@@ -165,13 +166,19 @@ def device
       puts format("%-6s  %7d  %3d  %7.3f  %8.3f", device, threads, omp, held, released)
     end
   end
+end
 
-  puts
-  puts "MPS training (item each step) beside a busy Ruby thread"
-  puts "          wall s  Ruby thread iterations"
-  [false, true].each do |release|
-    wall, count = child("busy", "mps", release: release, omp: CORES)
-    puts format("%-8s  %6.3f  %12d", release ? "released" : "held", wall, count)
+# getting the GVL back after releasing it can take a full time slice
+# when another thread is running Ruby code
+def busy
+  puts "training (item each step) beside a busy Ruby thread"
+  puts "device  config      wall s  Ruby thread iterations"
+  devices = mps? ? %w[cpu mps] : %w[cpu]
+  devices.each do |device|
+    [false, true].each do |release|
+      wall, count = child("busy", device, release: release, omp: CORES)
+      puts format("%-6s  %-8s  %6.3f  %12d", device, release ? "released" : "held", wall, count)
+    end
   end
 end
 
@@ -202,7 +209,7 @@ if ARGV[0] == "child"
   puts send("run_#{ARGV[1]}", *ARGV[2..].map { |v| v.match?(/\A\d+\z/) ? v.to_i : v }).join(" ")
 else
   puts "ruby #{RUBY_VERSION}, #{CORES} cores"
-  (ARGV.empty? ? %w[scaling size serve device] : ARGV).each do |section|
+  (ARGV.empty? ? %w[scaling size serve device busy] : ARGV).each do |section|
     puts
     send(section)
   end

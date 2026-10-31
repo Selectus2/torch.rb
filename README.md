@@ -469,6 +469,32 @@ device = Torch.device("mps")
 net.to(device)
 ```
 
+### Threads
+
+Release the GVL for heavy operations so threads can run them in parallel
+
+```ruby
+Torch.release_gvl = true
+```
+
+Or set `TORCH_RB_RELEASE_GVL=1`. This applies to matrix multiplication, convolutions, RNNs, attention, and backward. Matrix multiplication below `Torch.release_gvl_min_flops` (2 million by default) keeps the GVL, since releasing costs more than it saves.
+
+Operations on MPS only queue work, so they keep the GVL. Wait for queued work while other threads run with
+
+```ruby
+Torch::MPS.synchronize
+```
+
+Each operation also uses LibTorch’s thread pool, so split cores between threads
+
+```ruby
+Torch.set_num_threads(Etc.nprocessors / threads)
+```
+
+This works best when all threads are running Torch operations. When another thread is running Ruby code, getting the GVL back after each operation can take up to a time slice (100 ms), which can make training much slower. With Ruby 3.4+, set `RUBY_THREAD_TIMESLICE=10` to reduce this.
+
+A running operation cannot be interrupted, so `Timeout` and `Thread#raise` wait for it to finish.
+
 ## History
 
 View the [changelog](https://github.com/ankane/torch.rb/blob/master/CHANGELOG.md)
