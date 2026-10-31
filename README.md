@@ -495,6 +495,12 @@ This works best when all threads are running Torch operations. When another thre
 
 A running operation cannot be interrupted, so `Timeout` and `Thread#raise` wait for it to finish.
 
+### Fibers
+
+Fibers share the grad mode of their thread, so avoid yielding inside `Torch.no_grad` when other fibers need gradients.
+
+With Ruby 4.0+ and `Torch.release_gvl = true`, a fiber scheduler can run heavy operations on another thread so they don’t block other fibers. With [Async](https://github.com/socketry/async), set `ASYNC_SCHEDULER_WORKER_POOL=true`.
+
 ## History
 
 View the [changelog](https://github.com/ankane/torch.rb/blob/master/CHANGELOG.md)
