@@ -104,19 +104,23 @@ void init_torch(Rice::Module& m) {
     .define_singleton_function(
       "_save",
       [](const torch::IValue& value) {
-        auto v = torch::pickle_save(value);
+        auto v = without_gvl<gvl_cost::always>([](const torch::IValue& value) {
+          return torch::pickle_save(value);
+        }, value);
         return Rice::Object(Rice::detail::protect(rb_str_new, v.data(), v.size()));
       })
     .define_singleton_function(
       "_load",
       [](const std::string& filename) {
-        // https://github.com/pytorch/pytorch/issues/20356#issuecomment-567663701
-        std::ifstream input(filename, std::ios::binary);
-        std::vector<char> bytes(
-            (std::istreambuf_iterator<char>(input)),
-            (std::istreambuf_iterator<char>()));
-        input.close();
-        return torch::pickle_load(bytes);
+        return without_gvl<gvl_cost::always>([](const std::string& filename) {
+          // https://github.com/pytorch/pytorch/issues/20356#issuecomment-567663701
+          std::ifstream input(filename, std::ios::binary);
+          std::vector<char> bytes(
+              (std::istreambuf_iterator<char>(input)),
+              (std::istreambuf_iterator<char>()));
+          input.close();
+          return torch::pickle_load(bytes);
+        }, filename);
       })
     .define_singleton_function(
       "_from_blob",

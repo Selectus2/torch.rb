@@ -1,5 +1,6 @@
 require_relative "../test_helper"
 require "open3"
+require "tmpdir"
 
 class GvlReleaseTest < Minitest::Test
   def setup
@@ -98,6 +99,31 @@ class GvlReleaseTest < Minitest::Test
     held = count_during { loss.backward }
 
     assert_operator held, :<, released / 10
+  end
+
+  def test_save_load
+    path = File.join(Dir.mktmpdir, "state.pth")
+    state = {"weight" => Torch.randn(4000, 4000), "bias" => Torch.randn(4000)}
+    saved = count_during { Torch.save(state, path) }
+    loaded = nil
+    load_released = count_during { loaded = Torch.load(path) }
+    assert Torch.equal(state["weight"], loaded["weight"])
+    assert Torch.equal(state["bias"], loaded["bias"])
+
+    Torch.release_gvl = false
+    save_held = count_during { Torch.save(state, path) }
+    load_held = count_during { Torch.load(path) }
+
+    assert_operator saved, :>, save_held
+    assert_operator load_released, :>, load_held * 2
+  end
+
+  def test_load_invalid
+    path = File.join(Dir.mktmpdir, "invalid.pth")
+    File.binwrite(path, "invalid")
+    assert_raises(Torch::Error) do
+      Torch.load(path)
+    end
   end
 
   def test_error
