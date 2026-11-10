@@ -35,12 +35,13 @@ void init_torch(Rice::Module& m) {
   m.define_singleton_function(
       "grad_enabled?",
       []() {
+        sync_grad_mode();
         return torch::GradMode::is_enabled();
       })
     .define_singleton_function(
       "_set_grad_enabled",
       [](bool enabled) {
-        torch::GradMode::set_enabled(enabled);
+        set_grad_enabled(enabled);
       })
     .define_singleton_function(
       "manual_seed",

@@ -143,12 +143,14 @@ void init_tensor(Rice::Module& m, Rice::Class& c, Rice::Class& rb_cTensorOptions
     .define_method(
       "_index",
       [](Tensor& self, Array indices) {
+        sync_grad_mode();
         auto vec = index_vector(indices);
         return self.index(vec);
       })
     .define_method(
       "_index_put_custom",
       [](Tensor& self, Array indices, torch::Tensor& value) {
+        sync_grad_mode();
         auto vec = index_vector(indices);
         return self.index_put_(vec, value);
       })
@@ -276,6 +278,7 @@ void init_tensor(Rice::Module& m, Rice::Class& c, Rice::Class& rb_cTensorOptions
     .define_method(
       "_to",
       [](Tensor& self, torch::Device& device, int dtype, bool non_blocking, bool copy) {
+        sync_grad_mode();
         return self.to(device, (torch::ScalarType) dtype, non_blocking, copy);
       });
 

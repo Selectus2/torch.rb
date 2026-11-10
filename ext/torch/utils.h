@@ -14,6 +14,10 @@ static_assert(
 
 extern VALUE rb_eTorchError;
 
+// grad mode for the current Ruby thread (threads.cpp)
+void set_grad_enabled(bool enabled);
+void sync_grad_mode();
+
 inline void handle_global_error(const torch::Error& ex) {
   throw Rice::Exception(rb_eTorchError, ex.what_without_backtrace());
 }
