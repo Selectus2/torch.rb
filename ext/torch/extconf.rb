@@ -2,6 +2,9 @@ require "mkmf-rice"
 
 $CXXFLAGS += " -std=c++20 $(optflags)"
 
+# allow Ractors before Ruby 4.1 (for testing, can crash with parallel Ractors)
+$CXXFLAGS += " -DTORCH_RB_RACTOR_SAFE" if with_config("ractor-safe")
+
 # change to 0 for Linux pre-cxx11 ABI version
 $CXXFLAGS += " -D_GLIBCXX_USE_CXX11_ABI=1"
 

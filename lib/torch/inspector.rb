@@ -7,7 +7,7 @@ module Torch
       edgeitems: 3,
       linewidth: 80,
       sci_mode: nil
-    }
+    }.freeze
 
     class Formatter
       def initialize(tensor)
