@@ -18,6 +18,7 @@ void init_device(Rice::Module& m);
 void init_generator(Rice::Module& m, Rice::Class& rb_cGenerator);
 void init_ivalue(Rice::Module& m, Rice::Class& rb_cIValue);
 void init_random(Rice::Module& m);
+void init_threads(Rice::Module& m);
 
 VALUE rb_eTorchError = Qnil;
 
@@ -55,4 +56,5 @@ void Init_ext() {
   init_generator(m, rb_cGenerator);
   init_ivalue(m, rb_cIValue);
   init_random(m);
+  init_threads(m);
 }

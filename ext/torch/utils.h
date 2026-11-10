@@ -33,6 +33,10 @@ extern std::atomic<bool> release_gvl;
 extern std::atomic<double> release_gvl_min_flops;
 extern std::atomic<int> num_threads_generation;
 
+// grad mode for the current Ruby thread (threads.cpp)
+void set_grad_enabled(bool enabled);
+void sync_grad_mode();
+
 inline void handle_global_error(const torch::Error& ex) {
   throw Rice::Exception(rb_eTorchError, ex.what_without_backtrace());
 }

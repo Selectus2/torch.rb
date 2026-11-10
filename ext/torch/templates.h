@@ -27,7 +27,8 @@ using torch::nn::init::FanModeType;
 using torch::nn::init::NonlinearityType;
 
 #define HANDLE_TH_ERRORS                                             \
-  try {
+  try {                                                              \
+    sync_grad_mode();
 
 #define END_HANDLE_TH_ERRORS                                         \
   } catch (const torch::Error& ex) {                                 \
